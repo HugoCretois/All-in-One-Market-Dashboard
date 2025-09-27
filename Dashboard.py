@@ -696,10 +696,6 @@ asset_classes = st.sidebar.multiselect(
     default=["Equities"]
 )
 
-time_range = st.sidebar.selectbox(
-    "Select Time Range",
-    ["1D", "1W", "1M", "1Y", "5Y", "Max"]
-)
 
 start_date = st.sidebar.date_input(
     "Start Date",
@@ -716,6 +712,12 @@ end_date = st.sidebar.date_input(
 #---------------------------------------------------
 
 template_choice = "plotly_white"  # ou "plotly_dark" si tu préfères
+
+#---------------------------------------------------
+# Custom sidebar style (CSS)
+#---------------------------------------------------
+
+
 
 
 #---------------------------------------------------
