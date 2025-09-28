@@ -6,22 +6,22 @@
 # ==========================================================
 
 # ==========================================================
-# SOMMAIRE – ALL-IN-ONE ASSET DASHBOARD
+# SOMMAIRE – ALL-IN-ONE MARKET DASHBOARD
 # ----------------------------------------------------------
 # 1. Imports & Setup
 # 2. Utility Functions (data download, cleaning, metrics)
 # 3. Data Preprocessing & Metrics (returns, vol, drawdown)
 # 4. Data Visualization & Market Regime Indicators
 # 5. Streamlit Dashboard Layout
-#    5.1 Page Config & Global Settings
+#    5.1 Page Configuration, Navigation & Global Settings         
 #    5.2 Data Preparation for Dashboard
-#    5.3 Main Charts (Tabs)
-#    5.4 Health of the Market – Regime Monitor
+#    5.3 Market Performance – Main Charts (Tabs)
+#    5.4 Economic Situation – Market Regime Monitor
 #    5.5 Macroeconomic Indicators
 #    5.6 FX & Central Banks
-# ==========================================================
+# ===========================================================
 
-#Lets start
+#Lets start!
 
 # ==========================================================
 # 1. IMPORTS & SETUP
@@ -51,9 +51,6 @@ st.set_page_config(
     page_title="All-in-One Asset Dashboard",
     layout="wide"
 )
-
-
-
 
 # ==========================================================
 # 2. UTILITY FUNCTIONS (DATA & METRICS)
@@ -423,12 +420,6 @@ def plot_usd_strength(start=None, end=None):
     fig.update_layout(yaxis_title="Index Level", xaxis_title="Date")
     return fig
 
-
-#----------------------------------------
-# Global Market Regime Score
-#----------------------------------------
-
-
 #----------------------------------------
 # Global Market Regime Score (with min-max bar)
 #----------------------------------------
@@ -509,13 +500,15 @@ def display_market_regime_score(show_chart=True):
 
 
 # ==========================================================
-# 5.1 PAGE CONFIGURATION & GLOBAL SETTINGS
+# 5.1 PAGE CONFIGURATION, NAVIGATION & GLOBAL SETTINGS
 #-----------------------------------------------------------
-# This section sets up the Streamlit application and defines:
-# - Page title and layout
-# - Sidebar filters (asset classes, date range, etc.)
-# - Global mappings for tickers and labels
-# - Visualization template (light/dark)
+# This section sets up the Streamlit application with:
+# - Page title, layout, and sidebar behavior
+# - Global CSS (fonts, style customization)
+# - Navigation menu (Table of Contents in the sidebar)
+# - Home page with banner and introduction
+# - Sidebar filters (asset classes & manual date range)
+# - Global mappings for tickers and human-readable labels
 # ==========================================================
 
 #---------------------------------------------------
@@ -523,7 +516,7 @@ def display_market_regime_score(show_chart=True):
 #---------------------------------------------------
 
 st.set_page_config(
-    page_title="All-in-One Asset Dashboard",
+    page_title="All-in-One Market Dashboard",
     layout="wide",
     initial_sidebar_state="collapsed"  # 👈 ferme la sidebar par défaut
 )
@@ -561,31 +554,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-#---------------------------------------------------
-# Global font style (CSS injection)
-#---------------------------------------------------
 
-
-st.markdown(
-    """
-    <style>
-    /* Import Google Font */
-    @import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&display=swap');
-
-    /* Apply font globally */
-    html, body, [class*="css"]  {
-        font-family: 'Merriweather', serif;
-    }
-
-    /* Fix for sidebar collapse button */
-    section[data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"] div {
-        font-size: 20px !important;
-        content: "⮜" !important;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
 
 #---------------------------------------------------
 # Navigation (Table of Contents) 
@@ -674,7 +643,6 @@ if menu == "Home":
 # Sidebar filters
 #---------------------------------------------------
 
-
 st.sidebar.header("Filters")
 
 asset_classes = st.sidebar.multiselect(
@@ -701,7 +669,6 @@ end_date = st.sidebar.date_input(
 #---------------------------------------------------
 
 template_choice = "plotly_white"  # ou "plotly_dark" si tu préfères
-
 
 #---------------------------------------------------
 # Asset class to ticker mapping
@@ -942,7 +909,7 @@ if menu == "Economic Situation":
         "Global Score"
     ])
 
-       # ----------------------------------------------------------
+    # ----------------------------------------------------------
     # Breadth Indicator (S&P500)
     # ----------------------------------------------------------
     with tab_breadth:
@@ -1134,6 +1101,7 @@ if menu == "Macroeconomic Indicators":
     # ----------------------------------------------------------
     # Inflation Proxy (CPI from FRED)
     # ----------------------------------------------------------
+    
     with tab_inflation:
         st.subheader("Inflation Proxy (CPI)")
 
@@ -1210,6 +1178,7 @@ if menu == "FX & Central Banks":
     # ----------------------------------------------------------
     # FX Majors
     # ----------------------------------------------------------
+    
     with tab_fx:
         st.subheader("FX Majors")
 
@@ -1270,6 +1239,7 @@ if menu == "FX & Central Banks":
     # ----------------------------------------------------------
     # Central Bank Policy Rates
     # ----------------------------------------------------------
+    
     with tab_rates:
         st.subheader("Central Bank Policy Rates")
 
