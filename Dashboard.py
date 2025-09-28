@@ -336,26 +336,28 @@ def plot_correlation_period(price_df, asset_x, asset_y, start_date, end_date, ti
 # Breadth Indicator
 #----------------------------------------
 
-def plot_breadth(window=200):
-    sp500 = get_price_data("^GSPC")
+def plot_breadth(start=None, end=None, window=200):
+    sp500 = get_price_data("^GSPC", start=start, end=end)
     if sp500 is None or sp500.empty:
         st.warning("No data available for ^GSPC.")
         return px.line()
 
     ma = sp500["^GSPC"].rolling(window).mean()
     breadth = (sp500["^GSPC"] / ma - 1) * 100
+
     fig = px.line(breadth, title="Breadth Indicator (^GSPC vs 200d MA)")
-    fig.update_layout(yaxis_title="% Above MA (proxy)", xaxis_title="Date")
+    fig.update_layout(yaxis_title="% Above 200d MA", xaxis_title="Date")
     return fig
+
 
 
 #----------------------------------------
 # Yield Curve (10Y - 3M)
 #----------------------------------------
 
-def plot_us_yield_curve():
-    t10y = get_price_data("^TNX")
-    t3m = get_price_data("^IRX")
+def plot_us_yield_curve(start=None, end=None):
+    t10y = get_price_data("^TNX", start=start, end=end)
+    t3m = get_price_data("^IRX", start=start, end=end)
     if t10y is None or t3m is None or t10y.empty or t3m.empty:
         st.warning("No data available for US yield curve (^TNX, ^IRX).")
         return px.line()
@@ -365,19 +367,24 @@ def plot_us_yield_curve():
     fig.update_layout(yaxis_title="Spread (%)", xaxis_title="Date")
     return fig
 
+
 #----------------------------------------
 # Credit Spread (HYG - LQD)
 #----------------------------------------
 
-def plot_credit_spread():
-    hyg = get_price_data("HYG")
-    lqd = get_price_data("LQD")
+def plot_credit_spread(start=None, end=None):
+    hyg = get_price_data("HYG", start=start, end=end)
+    lqd = get_price_data("LQD", start=start, end=end)
+
     if hyg is None or lqd is None or hyg.empty or lqd.empty:
         st.warning("No data available for HYG or LQD.")
         return px.line()
 
+    # Align the two time series
     df = pd.concat([hyg, lqd], axis=1).dropna()
     df.columns = ["HYG", "LQD"]
+
+    # Compute relative performance (spread)
     hyg_ret = df["HYG"].pct_change().fillna(0)
     lqd_ret = df["LQD"].pct_change().fillna(0)
     spread = (hyg_ret - lqd_ret).cumsum()
@@ -391,8 +398,8 @@ def plot_credit_spread():
 # Volatility Regime (VIX Index)
 #----------------------------------------
 
-def plot_volatility_regime():
-    vix = get_price_data("^VIX")
+def plot_volatility_regime(start=None, end=None):
+    vix = get_price_data("^VIX", start=start, end=end)
     if vix is None or vix.empty:
         st.warning("No data available for ^VIX.")
         return px.line()
@@ -401,12 +408,13 @@ def plot_volatility_regime():
     fig.update_layout(yaxis_title="VIX Level", xaxis_title="Date")
     return fig
 
+
 #----------------------------------------
 # USD Strength (DXY Index)
 #----------------------------------------
 
-def plot_usd_strength():
-    dxy = get_price_data("DX-Y.NYB")
+def plot_usd_strength(start=None, end=None):
+    dxy = get_price_data("DX-Y.NYB", start=start, end=end)
     if dxy is None or dxy.empty:
         st.warning("No data available for DXY (DX-Y.NYB).")
         return px.line()
@@ -420,21 +428,25 @@ def plot_usd_strength():
 # Global Market Regime Score
 #----------------------------------------
 
+
+#----------------------------------------
+# Global Market Regime Score (with min-max bar)
+#----------------------------------------
+
 def display_market_regime_score(show_chart=True):
     """
-    Display the Global Market Regime Score in Streamlit.
-    - Shows the latest score as a gauge + interpretation
-    - Optionally plots a smoothed time series with Min/Max markers
+    Display the Global Market Regime Score with historical fixed min/max.
+    Score of the day compared against history since 2000.
     """
 
-    # --- Charger les données nécessaires ---
-    sp500 = get_price_data("^GSPC")
-    hyg = get_price_data("HYG")
-    lqd = get_price_data("LQD")
-    t10y = get_price_data("^TNX")
-    t3m = get_price_data("^IRX")
-    vix = get_price_data("^VIX")
-    dxy = get_price_data("DX-Y.NYB")
+    # --- Télécharger données depuis 2000 ---
+    sp500 = get_price_data("^GSPC", start="2000-01-01")
+    hyg = get_price_data("HYG", start="2000-01-01")
+    lqd = get_price_data("LQD", start="2000-01-01")
+    t10y = get_price_data("^TNX", start="2000-01-01")
+    t3m = get_price_data("^IRX", start="2000-01-01")
+    vix = get_price_data("^VIX", start="2000-01-01")
+    dxy = get_price_data("DX-Y.NYB", start="2000-01-01")
 
     if any(x is None or x.empty for x in [sp500, hyg, lqd, t10y, t3m, vix, dxy]):
         st.warning("Missing data for one or more regime indicators.")
@@ -449,71 +461,46 @@ def display_market_regime_score(show_chart=True):
     norm_vix = (vix["^VIX"] - vix["^VIX"].mean()) / vix["^VIX"].std()
     norm_dxy = (dxy["DX-Y.NYB"] - dxy["DX-Y.NYB"].mean()) / dxy["DX-Y.NYB"].std()
 
-    # --- Score global ---
     score = -norm_credit + norm_yield - norm_vix - norm_dxy
+
+    # --- Score du jour ---
     latest_score = score.iloc[-1]
 
-    # --- Jauge numérique ---
+    # --- Min et Max historiques ---
     min_score = score.min()
     max_score = score.max()
+    min_date = score.idxmin().strftime("%Y-%m-%d")
+    max_date = score.idxmax().strftime("%Y-%m-%d")
 
-    st.metric(
-        label="📊 Global Market Regime Score",
-        value=f"{latest_score:.2f}",
-        delta=f"Min: {min_score:.2f} | Max: {max_score:.2f}"
-    )
-
-    # --- Interprétation ---
-    if latest_score > 1:
-        interpretation = "🟢 Risk-On (markets strong)"
-    elif latest_score < -1:
-        interpretation = "🔴 Risk-Off (markets stressed)"
-    else:
-        interpretation = "🟡 Neutral (mixed signals)"
-
-    st.markdown(f"**Interpretation:** {interpretation}")
-
-    # --- Graphique historique optionnel ---
+    # --- Barre style thermomètre ---
     if show_chart:
-        # Zoom sur période récente
-        recent_score = score[score.index >= "2019-01-01"]
-        smooth_score = recent_score.rolling(30).mean()
+        fig = go.Figure(go.Indicator(
+            mode="gauge+number",
+            value=latest_score,
+            title={'text': "Global Market Regime Score"},
+            gauge={
+                'axis': {'range': [min_score, max_score]},
+                'bar': {'color': "royalblue"},
+                'steps': [
+                    {'range': [min_score, (min_score+max_score)/3], 'color': "crimson"},
+                    {'range': [(min_score+max_score)/3, (2*max_score+min_score)/3], 'color': "gold"},
+                    {'range': [(2*max_score+min_score)/3, max_score], 'color': "seagreen"}
+                ]
+            }
+        ))
+        st.plotly_chart(fig, use_container_width=True)
 
-        min_score = smooth_score.min()
-        max_score = smooth_score.max()
+    # --- Infos texte ---
+    st.markdown(f"""
+    **📉 Minimum historique :** {min_score:.2f} atteint le {min_date}  
+    **📈 Maximum historique :** {max_score:.2f} atteint le {max_date}  
+    **📊 Score actuel :** {latest_score:.2f}  
 
-        fig = px.line(
-            smooth_score,
-            title="Global Market Regime Score (30d Smoothed, Since 2019)"
-        )
-        fig.update_layout(
-            yaxis_title="Score (30d MA)",
-            xaxis_title="Date",
-            yaxis=dict(range=[min_score - 1, max_score + 1])
-        )
-
-        # Zones colorées
-        fig.add_hrect(y0=-999, y1=-1, fillcolor="red", opacity=0.1, line_width=0)
-        fig.add_hrect(y0=-1, y1=1, fillcolor="yellow", opacity=0.1, line_width=0)
-        fig.add_hrect(y0=1, y1=999, fillcolor="green", opacity=0.1, line_width=0)
-
-        # Annoter min et max
-        min_date = smooth_score.idxmin()
-        max_date = smooth_score.idxmax()
-        fig.add_annotation(
-            x=min_date, y=min_score - 0.2,
-            text=f"Min: {min_score:.2f}",
-            showarrow=True, arrowhead=2, arrowcolor="red", ay=30,
-            font=dict(color="red")
-        )
-        fig.add_annotation(
-            x=max_date, y=max_score + 0.2,
-            text=f"Max: {max_score:.2f}",
-            showarrow=True, arrowhead=2, arrowcolor="green", ay=-30,
-            font=dict(color="green")
-        )
-
-        st.plotly_chart(fig, use_container_width=True, key="global_score_chart")
+    **Interpretation :**  
+    - Le score combine **credit spreads, yield curve, VIX et USD**.  
+    - Valeurs proches du **minimum** = stress extrême, *Risk-Off*.  
+    - Valeurs proches du **maximum** = confiance élevée, *Risk-On*.  
+    """)
 
 
 # ==========================================================
@@ -620,9 +607,9 @@ menu = st.sidebar.radio(
     index=0  # Default = Home
 )
 
-# ==========================================================
+# ---------------------------------------------------
 # HOME PAGE
-# ==========================================================
+# ---------------------------------------------------
 
 if menu == "Home":
     st.markdown(
@@ -699,7 +686,9 @@ asset_classes = st.sidebar.multiselect(
 
 start_date = st.sidebar.date_input(
     "Start Date",
-    pd.to_datetime("2025-01-01")
+    pd.to_datetime("1950-01-01"),   # 👈 par défaut en 1950
+    min_value=pd.to_datetime("1950-01-01"),  # 👈 limite basse
+    max_value=datetime.today()                 # 👈 limite haute
 )
 
 end_date = st.sidebar.date_input(
@@ -712,12 +701,6 @@ end_date = st.sidebar.date_input(
 #---------------------------------------------------
 
 template_choice = "plotly_white"  # ou "plotly_dark" si tu préfères
-
-#---------------------------------------------------
-# Custom sidebar style (CSS)
-#---------------------------------------------------
-
-
 
 
 #---------------------------------------------------
@@ -930,18 +913,6 @@ if menu == "Market performance":
             st.warning("You need at least two assets to build a portfolio.")
 
         
-# ==========================================================
-# 5.4 HEALTH OF THE MARKET – MARKET REGIME MONITOR
-#-----------------------------------------------------------
-# This section monitors the overall health of the markets 
-# through regime indicators:
-# - Breadth Indicator (S&P500 > 200d MA)
-# - Credit Spread (HYG vs LQD)
-# - US Yield Curve (10Y - 3M)
-# - Volatility Regime (VIX Index)
-# - USD Strength (DXY Index)
-# - Global Market Regime Score (composite indicator)
-# ==========================================================
 
 # ==========================================================
 # 5.4 ECONOMIC SITUATION – MARKET REGIME MONITOR
@@ -971,12 +942,12 @@ if menu == "Economic Situation":
         "Global Score"
     ])
 
-    # ----------------------------------------------------------
+       # ----------------------------------------------------------
     # Breadth Indicator (S&P500)
     # ----------------------------------------------------------
     with tab_breadth:
         st.subheader("Breadth Indicator (S&P500)")
-        fig_breadth = plot_breadth()  
+        fig_breadth = plot_breadth(start=start_date, end=end_date)  # 🔗 filtres dates
         st.plotly_chart(fig_breadth, use_container_width=True, key="breadth_chart")
         st.markdown(
             "**Interpretation:** Shows % of S&P500 stocks trading above their 200-day moving average. "
@@ -989,7 +960,7 @@ if menu == "Economic Situation":
     # ----------------------------------------------------------
     with tab_credit:
         st.subheader("Credit Spread (HYG vs LQD)")
-        fig_credit = plot_credit_spread()
+        fig_credit = plot_credit_spread(start=start_date, end=end_date)  # 🔗 filtres dates
         st.plotly_chart(fig_credit, use_container_width=True, key="credit_chart")
         st.markdown(
             "**Interpretation:** Spread between High Yield (HYG) and Investment Grade (LQD) bonds. "
@@ -1002,7 +973,7 @@ if menu == "Economic Situation":
     # ----------------------------------------------------------
     with tab_yield:
         st.subheader("US Yield Curve (10Y - 3M Spread)")
-        fig_us_yield = plot_us_yield_curve()
+        fig_us_yield = plot_us_yield_curve(start=start_date, end=end_date)  # 🔗 filtres dates
         st.plotly_chart(fig_us_yield, use_container_width=True, key="us_yield_chart")
         st.markdown(
             "**Interpretation (US):** Spread between 10Y and 3M US Treasuries. "
@@ -1014,7 +985,7 @@ if menu == "Economic Situation":
     # ----------------------------------------------------------
     with tab_vol:
         st.subheader("Volatility Regime (VIX Index)")
-        fig_vol_regime = plot_volatility_regime()
+        fig_vol_regime = plot_volatility_regime(start=start_date, end=end_date)  # 🔗 filtres dates
         st.plotly_chart(fig_vol_regime, use_container_width=True, key="vol_regime_chart")
         st.markdown(
             "**Interpretation:** Market volatility proxy. Low VIX = stable, Risk-On. High VIX = stress, Risk-Off.  \n"
@@ -1026,7 +997,7 @@ if menu == "Economic Situation":
     # ----------------------------------------------------------
     with tab_usd:
         st.subheader("USD Strength (Dollar Index)")
-        fig_usd = plot_usd_strength()
+        fig_usd = plot_usd_strength(start=start_date, end=end_date)  # 🔗 filtres dates
         st.plotly_chart(fig_usd, use_container_width=True, key="usd_strength_chart")
         st.markdown(
             "**Interpretation:** Strong USD = global risk aversion, capital flows to safety (Risk-Off). "
@@ -1037,14 +1008,35 @@ if menu == "Economic Situation":
     # ----------------------------------------------------------
     # Global Market Regime Score (Composite Indicator)
     # ----------------------------------------------------------
+    
     with tab_score:
         st.subheader("Global Market Regime Score")
-        display_market_regime_score()  
+
+        # Display chart + current score
+        display_market_regime_score()   # 👈 enlève start et end si ta fonction ne les attend pas
+
+        # ✅ Interpretation (colle ici le bloc markdown que tu avais écrit)
         st.markdown(
-            "**Interpretation:** This indicator summarizes credit spreads, yield curve, volatility, "
-            "and USD strength into a single score.  \n"
-            "🟢 Positive = Risk-On  |  🟡 Neutral = No clear signal  |  🔴 Negative = Risk-Off."
-        )
+        """
+        ### Interpretation of the Global Market Regime Score  
+
+        - **Historical Minimum: -15.21 (March 17, 2020)**  
+          This point reflects the peak of the **Covid-19 crisis**, when volatility (VIX) spiked,  
+          the USD surged, and credit spreads widened dramatically.  
+          Markets were in a state of **extreme Risk-Off**, driven by panic selling.  
+
+        - **Historical Maximum: 9.29 (September 30, 2008)**  
+          This peak occurred during the **Global Financial Crisis**.  
+          The surge was largely driven by the explosion in **credit spreads (HYG – LQD)**,  
+          which outweighed the other components in the formula.  
+          It shows that the score should be read as a **relative measure of market stress**,  
+          not as a strict Risk-On signal.  
+
+        ---
+        👉 **In summary:**  
+        - The score ranges from **extreme stress (-15 in 2020)** to **credit-driven peaks (+9 in 2008)**.  
+        """
+    )
 
 # ==========================================================
 # 5.5 MACROECONOMIC INDICATORS
